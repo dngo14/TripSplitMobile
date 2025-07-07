@@ -1,113 +1,433 @@
-import { Ionicons } from '@expo/vector-icons'; // Using Expo Icons for vector graphics
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTrips } from '../../hooks/useTripData';
+import { useState } from 'react';
+import { timestampToDate } from '../../lib/firestore-utils';
+import { TripCard } from '../../components/ui/TripCard';
+import { ModernButton } from '../../components/ui/ModernButton';
+import { useAuth } from '../../components/contexts/AuthContext';
+import { useTheme } from '../../components/contexts/ThemeContext';
 
-const trips = [
-  { id: 'paris', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBf-aecAV1D2_R9kdo1HWmXq3ZZhccw1V6t13yBbd_icdIgaPd-nrpAFfcACnRrKVGaQKyIdOmTjzaj2Psj6w_rz6OgZcQ3Aaab3D1-03N459zC7wXU3ts7rm3c_Ztmrd_oCxPnw7fkQ4T8I5Z5s1TZ61JpxW14BUZj8HJFdqxaG583gooqSbp31iY9UmXBxp9Zx6ogxmNJxU8P2a2zWhpXbNrpdEKY3a-892TvRC5izeI1iW33BtC6Uypheikbvz4o7tVk3lFZVPw', name: 'Paris Getaway', dates: 'Oct 12 - Oct 19' },
-  { id: 'mountain', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD872k-RBYoxsMiBN5w13CDnlWnCuhdclvS4v9Nx0T9-PyD6WvJQOxx70QasLAYnk96d5Uoqv7K7bG-RKClxn4zbswsZkDktekdAVdXF8NDYTUnw_9Xdg2WbUmIHNuMqAkFF16bTJzmrBHEFf4RHslJ7jcR4fqm9fdawhUTVHYrNSkDmN30id9ojfw11lMUUz5ojXhlR3IPsTeVB-KLqEMrjOML0FwgGl-krj2jyZoNKv9fqkjFsjgBTF2Q2_Wc3ykZjqzqL1vXqBQ', name: 'Mountain Retreat', dates: 'Nov 5 - Nov 12' },
-  { id: 'beach', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCSWJx1K9CAKTWYP1j4DWdFV9FhRaSgq8-E71RIpVGtmqNol-mQ4WwnMBa2Q9xXVYC8NZPRHpUkTo_J9DAwmqOo50svAB__oDBMZH-yka9u2Hu9qRawJ3IRG7Q1jrRYRlt0WuPudF13_1cZRA4PuTMy6FKQH7XhGFyx7RK5_vyR36cq3DEasqHnZKywS4Ex8j-1R3qI6SAmaLuPJvHCDGgSuLNTN6u2CB5t7J1JCgmrItHrqp3_K5H-qsNaedbsoHFOlVPHdu9QRlc', name: 'Beach Vacation', dates: 'Dec 20 - Dec 27' },
-  { id: 'city', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFVolC-4AacRsfbDM6osCo1AvL5alWAhM5fV-oXEYHpelAC2S7TN11Dhd0Ndd0NJIXIB_lezufxpp0tBNOz3aAPttCcxWGEejGJA50Y_hkH0FP2Ao_DswchTagRZjRtBCe8GXEWarsbBNWzC73vvBWsiZBBVblDV0-CyWabcmYMdg49s76Hn1lVHDvopHddfXE6AyQbZnOtG4P6D3gf9c30wBNgYFI2W3tPHE0kEC5YVKC4DC3m0LUqLOLSkmHFOomi5CmgwcMe88', name: 'City Exploration', dates: 'Jan 8 - Jan 15' },
-  { id: 'roadtrip', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD83RakpaIJNYOIowVOy79davWwDOt6Nmn2qz_m_Hzr9HEMqxTR5cJd8ZrZ7Ik88X3Qc_wuG9H1ZJWrIYvsEg5d6ibwuezsyeIHaM2AiF9MZEHDynCrNziVJVtSsizZJB8DbNndMkSqzpHLmBuY3qLCuRWbvGdTPpFSdeACazPFUZ4lgfvLnyyO9AcDaYw1M1Ys3C4OyoMB1QeZUyhmXpzkyKKBkY3m3oiJRbWfdnaB0b4e_ele4LXg49EJlsw_42kmCsYmWmeBgDk', name: 'Family Road Trip', dates: 'Feb 14 - Feb 21' },
-  { id: 'adventure', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFVolC-4AacRsfbDM6osCo1AvL5alWAhM5fV-oXEYHpelAC2S7TN11Dhd0Ndd0NJIXIB_lezufxpp0tBNOz3aAPttCcxWGEejGJA50Y_hkH0FP2Ao_DswchTagRZjRtBCe8GXEWarsbBNWzC73vvBWsiZBBVblDV0-CyWabcmYMdg49s76Hn1lVHDvopHddfXE6AyQbZnOtG4P6D3gf9c30wBNgYFI2W3tPHE0kEC5YVKC4DC3m0LUqLOLSkmHFOomi5CmgwcMe88', name: 'Adventure Awaits', dates: 'Mar 3 - Mar 10' },
+// Fallback images for trips without custom images
+const fallbackImages = [
+  'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1551524164-6cf17ac17db1?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop',
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { trips, loading, error, refetch, createTrip } = useTrips();
+  const { user, signOut } = useAuth();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+  
+  console.log('HomeScreen: Rendering with user:', user?.uid || 'null');
+  console.log('HomeScreen: Trips loading:', loading, 'trips count:', trips.length);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
+
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newTripName, setNewTripName] = useState('');
+
+  const handleCreateTrip = () => {
+    setShowCreateDialog(true);
+  };
+
+  const handleCreateTripSubmit = async () => {
+    if (!newTripName.trim()) {
+      Alert.alert('Error', 'Please enter a trip name');
+      return;
+    }
+
+    try {
+      const tripId = await createTrip({
+        tripName: newTripName.trim(),
+      });
+      setNewTripName('');
+      setShowCreateDialog(false);
+      router.push(`/trip/${tripId}`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create trip. Please try again.');
+    }
+  };
+
+  const formatTripDates = (trip: any) => {
+    const startDate = timestampToDate(trip.tripStartDate);
+    const endDate = timestampToDate(trip.tripEndDate);
+    
+    if (startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    return 'Dates not set';
+  };
+
+  const getTripImage = (trip: any, index: number) => {
+    // Use trip's cover photo if available, then AI generated image, otherwise use fallback
+    if (trip.photos && trip.photos.length > 0) {
+      return trip.photos[0].downloadURL;
+    }
+    if (trip.aiGeneratedImage) {
+      return trip.aiGeneratedImage;
+    }
+    return fallbackImages[index % fallbackImages.length];
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading trips...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-     
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Trips</Text>
-        <Pressable style={styles.addButton}>
-          <Ionicons name="add" size={24} color="white" />
-        </Pressable>
+        <View style={styles.headerContent}>
+          <View style={styles.userSection}>
+            <View style={styles.userAvatar}>
+              <Ionicons name="person" size={18} color={theme.colors.primary} />
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.headerTitle}>My Trips</Text>
+              <Text style={styles.userName}>{user?.displayName || user?.email || 'User'}</Text>
+            </View>
+          </View>
+          <Pressable 
+            style={styles.signOutButton} 
+            onPress={() => {
+              // Clear demo user and sign out
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('demo-user');
+              }
+              signOut();
+            }}
+          >
+            <Ionicons name="log-out-outline" size={20} color={theme.colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
-      
-      <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-        {trips.map((trip) => (
-          <Pressable
-            key={trip.id}
-            style={styles.tripItem}
-            onPress={() => router.push(`/trip/${trip.id}`)} // Navigate to the trip detail page with the ID
-          >
-            <Image
-              style={styles.tripImage}
-              source={{ uri: trip.imageUrl }}
-            />
-            <View>
-              <Text style={styles.tripTitle}>{trip.name}</Text>
-              <Text style={styles.tripDates}>{trip.dates}</Text>
-            </View>
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryText}>Retry</Text>
           </Pressable>
-        ))}
-      </ScrollView>
-     
-    </View>
+        </View>
+      )}
 
+      <ScrollView 
+        contentContainerStyle={trips.length === 0 ? styles.emptyContainer : styles.gridContainer} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {trips.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="airplane-outline" size={64} color={theme.colors.textSecondary} />
+            <Text style={styles.emptyTitle}>No trips yet</Text>
+            <Text style={styles.emptySubtitle}>Tap the + button to create your first trip and start planning!</Text>
+            <ModernButton
+              title="Create Your First Trip"
+              onPress={handleCreateTrip}
+              icon="add"
+              style={styles.firstTripButton}
+            />
+          </View>
+        ) : (
+          <View style={styles.tripsContainer}>
+            {trips.map((trip, index) => (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                imageUrl={getTripImage(trip, index)}
+                onPress={() => router.push(`/trip/${trip.id}`)}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Floating Action Button */}
+      <Pressable style={styles.fab} onPress={handleCreateTrip}>
+        <Ionicons name="add" size={24} color="white" />
+      </Pressable>
+
+      {/* Create Trip Modal */}
+      <Modal
+        visible={showCreateDialog}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCreateDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create New Trip</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowCreateDialog(false)}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.inputLabel}>Trip Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newTripName}
+                onChangeText={setNewTripName}
+                placeholder="e.g., Summer Vacation '24"
+                placeholderTextColor={theme.colors.inactive}
+                autoFocus={true}
+              />
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowCreateDialog(false);
+                  setNewTripName('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={handleCreateTripSubmit}
+              >
+                <Text style={styles.createButtonText}>Create Trip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111218',
-    justifyContent: 'space-between',
+    backgroundColor: theme.colors.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
+    backgroundColor: theme.colors.header,
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 8,
+    ...theme.shadows.sm,
+    borderBottomWidth: 0.5,
+    borderBottomColor: theme.colors.border,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111218',
-    padding: 16,
-    paddingBottom: 8,
     justifyContent: 'space-between',
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    flex: 1,
-    textAlign: 'center',
-    paddingLeft: 48, 
-  },
-  addButton: {
-    width: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderRadius: 9999, 
-    backgroundColor: 'transparent',
-  },
-  gridContainer: {
+  userSection: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    padding: 16,
-    justifyContent: 'space-between', 
+    alignItems: 'center',
+    flex: 1,
   },
-  tripItem: {
-    flexDirection: 'column',
-    gap: 12,
-    paddingBottom: 12,
-    width: '48%', 
+  userAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  tripImage: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: 12,
-    resizeMode: 'cover',
+  userInfo: {
+    alignItems: 'flex-start',
+    flex: 1,
   },
-  tripTitle: {
-    color: 'white',
-    fontSize: 16,
+  signOutButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: theme.colors.background,
+  },
+  userName: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     fontWeight: '500',
   },
-  tripDates: {
-    color: '#9ba1bb',
-    fontSize: 14,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 2,
   },
-  bottomNavContainer: {
-    backgroundColor: '#1b1d27',
+  fab: {
+    position: 'absolute',
+    bottom: 90,
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.lg,
+  },
+  loadingText: {
+    color: theme.colors.textSecondary,
+    marginTop: 16,
+    fontSize: 16,
+  },
+  errorContainer: {
+    padding: 16,
+    backgroundColor: theme.colors.error,
+    margin: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: 'white',
+    flex: 1,
+  },
+  retryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'white',
+    borderRadius: 4,
+  },
+  retryText: {
+    color: theme.colors.error,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    paddingBottom: 120, // Extra padding for tab bar
+  },
+  emptyState: {
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    color: theme.colors.text,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  gridContainer: {
+    padding: 16,
+    paddingBottom: 100, // Extra padding for tab bar
+  },
+  tripsContainer: {
+    gap: 8,
+  },
+  firstTripButton: {
+    marginTop: 24,
+    alignSelf: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    ...theme.shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  createButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

@@ -1,46 +1,72 @@
 import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, Alert, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../components/contexts/AuthContext';
 
 export default function SignInPage() {
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  // need to replace this with your actual authentication state
-  // using a hook from your AuthContext
-  const { signIn } = useAuth();
+  const { signIn, loading } = useAuth();
 
   const handleSignIn = async () => {
-    setLoading(true);
     try {
-      await signIn(); // Call the signIn function from AuthContext
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Sign-in error:', error);
-      setLoading(false);
-      // Show an error message to the user
+      console.log('SignInPage: Calling signIn');
+      await signIn();
+      console.log('SignInPage: signIn completed');
+    } catch (error: any) {
+      console.error('SignInPage: signIn error:', error);
+      Alert.alert('Sign In Error', error?.message || 'Failed to sign in. Please try again.');
     }
   };
 
+
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#f8f9fa', '#e3f2fd', '#f8f9fa']}
+      style={styles.container}
+    >
       <Stack.Screen options={{ title: 'Sign In', headerShown: false }} />
+      
+      <View style={styles.logoContainer}>
+        <View style={styles.logoCircle}>
+          <Ionicons name="airplane" size={40} color="#007AFF" />
+        </View>
+        <Text style={styles.appName}>TripSplit</Text>
+        <Text style={styles.tagline}>Split expenses, share memories</Text>
+      </View>
+
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome to TripSplit!</Text>
-        <Text style={styles.description}>
-          Sign in with your Google account to start planning your trips and splitting expenses with ease.
-        </Text>
+        <View style={styles.welcomeSection}>
+          <Text style={styles.title}>Welcome to TripSplit!</Text>
+          <Text style={styles.description}>
+            Sign in with your Google account to start planning your trips and splitting expenses with ease.
+          </Text>
+        </View>
+
         {loading ? (
-          <ActivityIndicator size="large" color="#0000ff" />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Signing you in...</Text>
+          </View>
         ) : (
-          <Pressable style={styles.button} onPress={handleSignIn}>
-            <Text style={styles.buttonText}>Sign In with Google</Text>
-          </Pressable>
+          <View style={styles.buttonContainer}>
+            <Pressable style={styles.googleButton} onPress={handleSignIn}>
+              <View style={styles.googleButtonContent}>
+                <Ionicons name="logo-google" size={20} color="#fff" />
+                <Text style={styles.buttonText}>Sign In with Google</Text>
+              </View>
+            </Pressable>
+          </View>
         )}
       </View>
-    </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          By signing in, you agree to our Terms of Service and Privacy Policy
+        </Text>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -49,43 +75,110 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0', 
-    padding: 16,
+    padding: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  tagline: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    padding: 24,
-    borderRadius: 8,
-    backgroundColor: '#fff', 
-    alignItems: 'center',
+    padding: 32,
+    borderRadius: 24,
+    backgroundColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  welcomeSection: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
+    color: '#1a1a1a',
   },
   description: {
     fontSize: 16,
-    color: '#555',
-    marginBottom: 24,
+    color: '#666',
     textAlign: 'center',
+    lineHeight: 24,
   },
-  button: {
-    backgroundColor: '#4285F4', 
-    paddingVertical: 12,
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  buttonContainer: {
+    width: '100%',
+  },
+  googleButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 4,
+    borderRadius: 12,
+    width: '100%',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  footer: {
+    marginTop: 40,
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
